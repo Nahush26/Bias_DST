@@ -18,14 +18,14 @@ wandb.login(key = "23a6d19ba7e2b661adf79adccf3ff4fddabaf0e2")
 # wandb.init(project='RigL', entity='ucalgary', name = 'test')
 sweep_configuration = {
     'method': 'grid',
-    'name': 'rigL_sweeps_test',
+    'name': 'set_sweeps_test',
     'metric': {
         'goal': 'maximize', 
         'name': 'eval_acc'
         },
     'parameters': {
         'sparsity': {'values': [0.5, 0.6, 0.7,0.8,0.9]},
-        'seed': {'values': [0,1,2,3,4]},
+        'seed': {'values': [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]},
         
      }
 }
@@ -63,7 +63,7 @@ import jaxpruner
 import ml_collections
 
 
-DATASET_PATH = "./data"
+DATASET_PATH = "/scratch/nahush/"
 train_dataset = CIFAR10(root=DATASET_PATH, train=True, download=True)
 DATA_MEANS = (train_dataset.data / 255.0).mean(axis=(0,1,2))
 DATA_STD = (train_dataset.data / 255.0).std(axis=(0,1,2))
@@ -104,7 +104,7 @@ train_loader = data.DataLoader(train_set,
                                shuffle=True,
                                drop_last=True,
                                collate_fn=numpy_collate,
-                               num_workers=8,
+                               num_workers=4,
                                persistent_workers=True)
 val_loader   = data.DataLoader(val_set,
                                batch_size=128*4,
@@ -285,7 +285,7 @@ class TrainerModule:
                 # metrics = {"val loss" : loss_val, "val accuracy" : 100*eval_acc}
                 wandb.log({"val accuracy" : 100*eval_acc})
                 # self.logger.add_scalar('val/acc', eval_acc, global_step=epoch_idx)
-                if epoch_idx>0.5*num_epochs:
+                if epoch_idx>0.6*num_epochs:
                     if eval_acc >= best_eval:
                         best_eval = eval_acc
                         print("current_best " , best_eval)
@@ -383,12 +383,17 @@ def train_classifier(*args, sparsity, seed, num_epochs=200, **kwargs):
         trainer.load_model()
         preds =  pd.DataFrame(preds)
         name = 'resnet'
-        preds.to_csv(f'{name}_{sparsity}_{seed}.csv', index = False)
+        preds.to_csv(f'{name}_{sparsity}_{seed}_{config.sparsity_config.algorithm}.csv', index = False)
     else:
         trainer.load_model(pretrained=True)
     # Test trained model
     val_acc,preds = trainer.eval_model(val_loader)
+    preds =  pd.DataFrame(preds)
+    preds.to_csv(f'{name}_{sparsity}_{seed}_{config.sparsity_config.algorithm}_val.csv', index = False)
     test_acc,preds = trainer.eval_model(test_loader)
+    preds =  pd.DataFrame(preds)
+    preds.to_csv(f'{name}_{sparsity}_{seed}_{config.sparsity_config.algorithm}_test.csv', index = False)
+
     return trainer, {'val': val_acc, 'test': test_acc}
 
 
@@ -410,8 +415,8 @@ def train_classifier(*args, sparsity, seed, num_epochs=200, **kwargs):
 #                                                   num_epochs=200)
 
 def main_trainer():
-    wandb.init (name = 'RigL_grid', entity='ucalgary')
-    resnet_trainer, resnet_results = train_classifier(model_name="ResNet",
+    wandb.init (name = 'RiGL_grid', entity='ucalgary')
+    resnet_trainer, resnet_results = train_classifier(model_name=f"ResNet_rigl_{wandb.config.sparsity}_{wandb.config.seed}",
                                                   model_class=None,
                                                   model_hparams={"num_classes": 10,
                                                                  "c_hidden": (16, 32, 64),
@@ -449,5 +454,5 @@ def main_trainer():
 #                                                 num_epochs=3)
 
 
-wandb.agent(sweep_id= 'cagkh4ya', function=main_trainer)
+wandb.agent(sweep_id= 'uqmzsakg', function=main_trainer)
 # main_trainer()
